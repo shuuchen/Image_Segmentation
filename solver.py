@@ -25,7 +25,8 @@ class Solver(object):
 		self.optimizer = None
 		self.img_ch = config.img_ch
 		self.output_ch = config.output_ch
-		self.criterion = torch.nn.BCELoss()
+		#self.criterion = torch.nn.BCELoss()
+		self.criterion = nn.CrossEntropyLoss()
 		self.augmentation_prob = config.augmentation_prob
 
 		# Hyper-parameters
@@ -55,17 +56,17 @@ class Solver(object):
 	def build_model(self):
 		"""Build generator and discriminator."""
 		if self.model_type =='U_Net':
-			self.unet = U_Net(img_ch=3,output_ch=1)
+			self.unet = U_Net(img_ch=self.img_ch,output_ch=self.output_ch)
 		elif self.model_type =='R2U_Net':
-			self.unet = R2U_Net(img_ch=3,output_ch=1,t=self.t)
+			self.unet = R2U_Net(img_ch=self.img_ch,output_ch=self.output_ch,t=self.t)
 		elif self.model_type =='AttU_Net':
-			self.unet = AttU_Net(img_ch=3,output_ch=1)
+			self.unet = AttU_Net(img_ch=self.img_ch,output_ch=self.output_ch)
 		elif self.model_type == 'R2AttU_Net':
-			self.unet = R2AttU_Net(img_ch=3,output_ch=1,t=self.t)
+			self.unet = R2AttU_Net(img_ch=self.img_ch,output_ch=self.output_ch,t=self.t)
 			
 
 		self.optimizer = optim.Adam(list(self.unet.parameters()),
-									  self.lr, [self.beta1, self.beta2])
+					    self.lr, [self.beta1, self.beta2])
 		self.unet.to(self.device)
 
 		# self.print_network(self.unet, self.model_type)
@@ -145,11 +146,12 @@ class Solver(object):
 
 					# SR : Segmentation Result
 					SR = self.unet(images)
-					SR_probs = F.sigmoid(SR)
-					SR_flat = SR_probs.view(SR_probs.size(0),-1)
+					#SR_probs = F.sigmoid(SR)
+					#print(SR_probs.size()); exit(1)
+					#SR_flat = SR_probs.view(SR_probs.size(0),-1)
 
-					GT_flat = GT.view(GT.size(0),-1)
-					loss = self.criterion(SR_flat,GT_flat)
+					#GT_flat = GT.view(GT.size(0),-1)
+					loss = self.criterion(SR, GT)
 					epoch_loss += loss.item()
 
 					# Backprop + optimize
@@ -206,7 +208,8 @@ class Solver(object):
 
 					images = images.to(self.device)
 					GT = GT.to(self.device)
-					SR = F.sigmoid(self.unet(images))
+					#SR = F.sigmoid(self.unet(images))
+					SR = self.unet(images)
 					acc += get_accuracy(SR,GT)
 					SE += get_sensitivity(SR,GT)
 					SP += get_specificity(SR,GT)
@@ -270,7 +273,8 @@ class Solver(object):
 
 				images = images.to(self.device)
 				GT = GT.to(self.device)
-				SR = F.sigmoid(self.unet(images))
+				#SR = F.sigmoid(self.unet(images))
+				SR = self.unet(images)
 				acc += get_accuracy(SR,GT)
 				SE += get_sensitivity(SR,GT)
 				SP += get_specificity(SR,GT)
